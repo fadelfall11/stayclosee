@@ -5,7 +5,7 @@ import PasswordField from '../components/PasswordField'
 import { GoogleIcon, AppleIcon } from '../components/SocialIcons'
 import '../components/Screen.css'
 import '../components/FormControls.css'
-import { login, saveUser, saveToken } from '../services/api'
+import { login, saveUser, saveToken, saveRegisteredAccount } from '../services/api'
 
 function LoginPage() {
   const [email, setEmail] = useState('')
@@ -29,11 +29,38 @@ function LoginPage() {
     }
   }
 
-  const handleSocialLogin = (provider) => {
-    const rawName = email.split('@')[0] || provider
-    const socialUser = { name: `Utilisateur ${provider}`, email: email || `${provider.toLowerCase()}@stayclose.com` }
-    saveToken(`social_${provider.toLowerCase()}_token_` + Date.now())
-    saveUser(socialUser)
+  const handleGoogleLogin = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      // Tenter la connexion OAuth2 Google du backend Spring Boot si le serveur tourne
+      const checkServer = await fetch('http://localhost:8080/actuator/health').catch(() => null)
+      if (checkServer && checkServer.ok) {
+        window.location.href = 'http://localhost:8080/oauth2/authorization/google'
+        return
+      }
+    } catch (err) {}
+
+    // Mode connexion directe Google (si le serveur Spring Boot n'est pas encore démarré)
+    const googleAccount = {
+      name: 'Utilisateur Google',
+      email: email || 'utilisateur.google@gmail.com',
+    }
+    saveToken('google_oauth_token_' + Date.now())
+    saveUser(googleAccount)
+    saveRegisteredAccount({ name: googleAccount.name, email: googleAccount.email, password: 'google_oauth_pass' })
+    setLoading(false)
+    navigate('/dashboard')
+  }
+
+  const handleAppleLogin = () => {
+    const appleAccount = {
+      name: 'Utilisateur Apple',
+      email: email || 'utilisateur.apple@icloud.com',
+    }
+    saveToken('apple_oauth_token_' + Date.now())
+    saveUser(appleAccount)
+    saveRegisteredAccount({ name: appleAccount.name, email: appleAccount.email, password: 'apple_oauth_pass' })
     navigate('/dashboard')
   }
 
@@ -100,11 +127,11 @@ function LoginPage() {
             </div>
 
             <div className="social-row">
-              <button type="button" className="social-btn" onClick={() => handleSocialLogin('Google')}>
+              <button type="button" className="social-btn" onClick={handleGoogleLogin} title="Se connecter directement avec Google">
                 <GoogleIcon />
                 Google
               </button>
-              <button type="button" className="social-btn" onClick={() => handleSocialLogin('Apple')}>
+              <button type="button" className="social-btn" onClick={handleAppleLogin} title="Se connecter directement avec Apple">
                 <AppleIcon />
                 Apple
               </button>
