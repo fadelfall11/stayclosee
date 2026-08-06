@@ -1,0 +1,135 @@
+.screen {
+  min-height: 100svh;
+  background: var(--bg);
+  display: flex;
+  justify-content: center;
+}
+
+.screen-inner {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  padding: 56px 24px 28px;
+}
+
+.screen-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.screen-header.align-start {
+  align-items: flex-start;
+}
+
+.screen-title {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.screen-subtitle {
+  margin: 4px 0 0;
+  font-size: 14.5px;
+  color: var(--text-secondary);
+}
+
+.screen-tagline {
+  color: var(--primary-soft-text);
+  font-weight: 600;
+  margin: 0;
+}
+
+.screen-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 24px;
+}
+
+.screen-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 32px;
+}
+
+.screen-footer-text {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-row .field {
+  flex: 1;
+}
+
+.divider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+}
+
+.divider-row::before,
+.divider-row::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--divider);
+}
+
+.divider-row span {
+  font-size: 12.5px;
+  color: var(--placeholder);
+  white-space: nowrap;
+}
+
+.social-row {
+  display: flex;
+  gap: 12px;
+}
+
+.social-btn {
+  flex: 1;
+  height: 46px;
+  border-radius: 12px;
+  border: 1px solid var(--social-border);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.social-btn:hover {
+  background: #faf9f8;
+}
+
+.forgot-link {
+  align-self: flex-end;
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+}

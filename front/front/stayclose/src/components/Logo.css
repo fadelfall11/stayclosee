@@ -1,0 +1,8 @@
+.logo-badge {
+  background: var(--primary-soft-bg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
