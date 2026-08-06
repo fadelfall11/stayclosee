@@ -4,7 +4,7 @@ import Logo from '../components/Logo'
 import PasswordField from '../components/PasswordField'
 import '../components/Screen.css'
 import '../components/FormControls.css'
-import { register, saveUser } from '../services/api'
+import { register } from '../services/api'
 
 function SignupPage() {
   const [firstName, setFirstName] = useState('')
@@ -32,22 +32,12 @@ function SignupPage() {
 
     setLoading(true)
     const fullName = `${firstName} ${lastName}`.trim()
-    const userData = { name: fullName || firstName || 'Utilisateur', email }
 
     try {
       await register(fullName, email, password)
-      saveUser(userData)
       navigate('/dashboard')
     } catch (err) {
-      saveUser(userData)
-      // Si le backend Spring Boot n'est pas démarré (Failed to fetch / Échec de la récupération)
-      if (err.message.includes('fetch') || err.message.includes('récupération') || err.message.includes('Failed to fetch')) {
-        console.warn('Backend non joignable, redirection vers le dashboard pour la démonstration UI.')
-        navigate('/dashboard')
-      } else {
-        setError(err.message || 'Erreur lors de la création du compte.')
-        setTimeout(() => navigate('/dashboard'), 1200)
-      }
+      setError(err.message || 'Erreur lors de la création du compte.')
     } finally {
       setLoading(false)
     }
@@ -151,9 +141,13 @@ function SignupPage() {
 
           <div className="screen-footer" style={{ marginTop: 8 }}>
             {error && (
-              <p style={{ color: 'var(--primary)', fontSize: 13, marginBottom: 8, textAlign: 'center' }}>
-                {error}
-              </p>
+              <div style={{
+                background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626',
+                padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                marginBottom: 12, textAlign: 'center'
+              }}>
+                ⚠️ {error}
+              </div>
             )}
             <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? 'Création en cours…' : 'Créer mon compte'}

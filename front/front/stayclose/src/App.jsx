@@ -7,6 +7,14 @@ import ContactsPage from './pages/ContactsPage'
 import NotificationsPage from './pages/NotificationsPage'
 import SettingsPage from './pages/SettingsPage'
 import AISuggestionsPage from './pages/AISuggestionsPage'
+import { isAuthenticated } from './services/api'
+
+function ProtectedRoute({ children }) {
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />
+  }
+  return children
+}
 
 function App() {
   return (
@@ -16,12 +24,12 @@ function App() {
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/login" element={<LoginPage />} />
 
-      {/* App (post-connexion) */}
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/contacts" element={<ContactsPage />} />
-      <Route path="/notifications" element={<NotificationsPage />} />
-      <Route path="/ai" element={<AISuggestionsPage />} />
-      <Route path="/settings" element={<SettingsPage />} />
+      {/* App (post-connexion protégées) */}
+      <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+      <Route path="/contacts" element={<ProtectedRoute><ContactsPage /></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+      <Route path="/ai" element={<ProtectedRoute><AISuggestionsPage /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

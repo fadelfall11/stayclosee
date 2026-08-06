@@ -5,7 +5,7 @@ import PasswordField from '../components/PasswordField'
 import { GoogleIcon, AppleIcon } from '../components/SocialIcons'
 import '../components/Screen.css'
 import '../components/FormControls.css'
-import { login, saveUser } from '../services/api'
+import { login, saveUser, saveToken } from '../services/api'
 
 function LoginPage() {
   const [email, setEmail] = useState('')
@@ -19,28 +19,22 @@ function LoginPage() {
     setError('')
     setLoading(true)
 
-    // Formater un nom propre à partir de l'email pour l'affichage (ex: david.cho@gmail.com -> David Cho)
-    const rawName = email.split('@')[0].replace(/[._-]/g, ' ')
-    const formattedName = rawName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-    const userData = { name: formattedName || 'Utilisateur', email }
-
     try {
       await login(email, password)
-      saveUser(userData)
       navigate('/dashboard')
     } catch (err) {
-      saveUser(userData)
-      // Si le backend n'est pas démarré ou retourne une erreur réseau, autorise l'accès pour la démonstration UI
-      if (err.message.includes('fetch') || err.message.includes('récupération') || err.message.includes('Failed to fetch')) {
-        console.warn('Backend non joignable, redirection vers le dashboard en mode démo.')
-        navigate('/dashboard')
-      } else {
-        setError(err.message || 'Erreur de connexion. Redirection...')
-        setTimeout(() => navigate('/dashboard'), 1000)
-      }
+      setError(err.message || 'Erreur de connexion. Veuillez vérifier vos identifiants.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSocialLogin = (provider) => {
+    const rawName = email.split('@')[0] || provider
+    const socialUser = { name: `Utilisateur ${provider}`, email: email || `${provider.toLowerCase()}@stayclose.com` }
+    saveToken(`social_${provider.toLowerCase()}_token_` + Date.now())
+    saveUser(socialUser)
+    navigate('/dashboard')
   }
 
   return (
@@ -89,9 +83,13 @@ function LoginPage() {
 
           <div className="screen-footer" style={{ marginTop: 8 }}>
             {error && (
-              <p style={{ color: 'var(--primary)', fontSize: 13, marginBottom: 8, textAlign: 'center' }}>
-                {error}
-              </p>
+              <div style={{
+                background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626',
+                padding: '10px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500,
+                marginBottom: 12, textAlign: 'center'
+              }}>
+                ⚠️ {error}
+              </div>
             )}
             <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? 'Connexion en cours…' : 'Se connecter'}
@@ -102,11 +100,11 @@ function LoginPage() {
             </div>
 
             <div className="social-row">
-              <button type="button" className="social-btn" onClick={() => navigate('/dashboard')}>
+              <button type="button" className="social-btn" onClick={() => handleSocialLogin('Google')}>
                 <GoogleIcon />
                 Google
               </button>
-              <button type="button" className="social-btn" onClick={() => navigate('/dashboard')}>
+              <button type="button" className="social-btn" onClick={() => handleSocialLogin('Apple')}>
                 <AppleIcon />
                 Apple
               </button>

@@ -29,7 +29,27 @@ export function getUser() {
 }
 
 export function isAuthenticated() {
-  return !!getToken() || !!getUser()
+  return !!getToken() && !!getUser()
+}
+
+export function getRegisteredAccounts() {
+  try {
+    const data = localStorage.getItem('kc_registered_accounts')
+    return data ? JSON.parse(data) : []
+  } catch {
+    return []
+  }
+}
+
+export function saveRegisteredAccount(account) {
+  const accounts = getRegisteredAccounts()
+  const existsIndex = accounts.findIndex(a => a.email.toLowerCase() === account.email.toLowerCase())
+  if (existsIndex >= 0) {
+    accounts[existsIndex] = account
+  } else {
+    accounts.push(account)
+  }
+  localStorage.setItem('kc_registered_accounts', JSON.stringify(accounts))
 }
 
 export function getStoredContacts() {
@@ -74,26 +94,66 @@ async function request(path, options = {}) {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export async function login(email, motDePasse) {
-  const data = await request('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, motDePasse }),
-  })
-  if (data?.token) saveToken(data.token)
-  saveUser({
-    name: data?.user?.nom || data?.nom || email.split('@')[0],
-    email: email,
-  })
-  return data
+  try {
+    const data = await request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, motDePasse }),
+    })
+    if (data?.token) saveToken(data.token)
+    const userObj = {
+      name: data?.user?.nom || data?.nom || email.split('@')[0],
+      email: email,
+    }
+    saveUser(userObj)
+    saveRegisteredAccount({ name: userObj.name, email, password: motDePasse })
+    return data
+  } catch (err) {
+    // Si le serveur backend a retourné une vraie réponse d'erreur HTTP (ex: 400, 401, 404)
+    if (!err.message.includes('fetch') && !err.message.includes('récupération') && !err.message.includes('Failed to fetch')) {
+      throw new Error(err.message || 'Identifiants incorrects ou compte inexistant.')
+    }
+
+    // Si le backend est hors ligne / non démarré: vérification dans les comptes enregistrés localement
+    const localAccounts = getRegisteredAccounts()
+    const found = localAccounts.find(a => a.email.toLowerCase() === email.toLowerCase())
+
+    if (!found) {
+      throw new Error('Aucun compte trouvé avec cet e-mail. Veuillez vous inscrire d\'abord.')
+    }
+    if (found.password !== motDePasse) {
+      throw new Error('Mot de passe incorrect.')
+    }
+
+    // Compte local valide trouvé
+    saveToken('demo_token_' + Date.now())
+    saveUser({ name: found.name || email.split('@')[0], email: found.email })
+    return { success: true }
+  }
 }
 
 export async function register(nom, email, motDePasse) {
-  const data = await request('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify({ nom, email, motDePasse }),
-  })
-  if (data?.token) saveToken(data.token)
-  saveUser({ name: nom, email: email })
-  return data
+  const userObj = { name: nom, email: email }
+  saveRegisteredAccount({ name: nom, email, password: motDePasse })
+
+  try {
+    const data = await request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ nom, email, motDePasse }),
+    })
+    if (data?.token) saveToken(data.token)
+    saveUser(userObj)
+    return data
+  } catch (err) {
+    // Si le serveur backend a retourné une erreur HTTP réelle (ex: email déjà pris)
+    if (!err.message.includes('fetch') && !err.message.includes('récupération') && !err.message.includes('Failed to fetch')) {
+      throw new Error(err.message || 'Erreur lors de la création du compte.')
+    }
+
+    // Inscription en mode démo si backend hors ligne
+    saveToken('demo_token_' + Date.now())
+    saveUser(userObj)
+    return { success: true }
+  }
 }
 
 // ─── Contacts ─────────────────────────────────────────────────────────────────
