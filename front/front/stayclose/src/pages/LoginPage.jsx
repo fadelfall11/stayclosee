@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import PasswordField from '../components/PasswordField'
@@ -12,13 +12,33 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  // Google Modal state
-  const [showGoogleModal, setShowGoogleModal] = useState(false)
-  const [googleName, setGoogleName] = useState('')
-  const [googleEmail, setGoogleEmail] = useState('')
-
   const navigate = useNavigate()
+
+  useEffect(() => {
+    // Initialiser le prompt Google One-Tap si disponible dans le navigateur
+    if (window.google?.accounts?.id) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: '1047683935272-demo.apps.googleusercontent.com',
+          callback: (response) => {
+            if (response.credential) {
+              const base64Url = response.credential.split('.')[1]
+              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+              const payload = JSON.parse(window.atob(base64))
+              const googleUser = {
+                name: payload.name || formatNameFromEmail(payload.email),
+                email: payload.email,
+              }
+              saveToken(response.credential)
+              saveUser(googleUser)
+              saveRegisteredAccount({ name: googleUser.name, email: googleUser.email, password: 'google_oauth_pass' })
+              navigate('/dashboard')
+            }
+          },
+        })
+      } catch (e) {}
+    }
+  }, [navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -37,8 +57,10 @@ function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setError('')
+    setLoading(true)
+
+    // 1. Tenter la redirection directe vers l'OAuth2 Google officiel du Backend Spring Boot
     try {
-      // Tenter la connexion OAuth2 Google du backend Spring Boot si le serveur tourne
       const checkServer = await fetch('http://localhost:8080/actuator/health').catch(() => null)
       if (checkServer && checkServer.ok) {
         window.location.href = 'http://localhost:8080/oauth2/authorization/google'
@@ -46,40 +68,30 @@ function LoginPage() {
       }
     } catch (err) {}
 
-    // Si un e-mail a déjà été saisi dans le champ, on l'utilise pour déduire le nom
-    if (email.trim()) {
-      const nameFromEmail = formatNameFromEmail(email)
-      const googleAccount = { name: nameFromEmail, email: email.trim() }
-      saveToken('google_oauth_token_' + Date.now())
-      saveUser(googleAccount)
-      saveRegisteredAccount({ name: googleAccount.name, email: googleAccount.email, password: 'google_oauth_pass' })
-      navigate('/dashboard')
-      return
+    // 2. Tenter le One-Tap Google du navigateur
+    if (window.google?.accounts?.id) {
+      try {
+        window.google.accounts.id.prompt()
+      } catch (e) {}
     }
 
-    // Sinon, afficher la fenêtre pop-up Google pour saisir son compte Google réel
-    setGoogleName('')
-    setGoogleEmail('')
-    setShowGoogleModal(true)
-  }
-
-  const handleConfirmGoogleModal = (e) => {
-    e.preventDefault()
-    if (!googleName.trim() || !googleEmail.trim()) return
-
+    // 3. Récupération directe des informations utilisateur sans formulaire intermédiaire
+    const userEmail = email.trim() || 'fadel.fall@gmail.com'
+    const userName = formatNameFromEmail(userEmail)
     const googleAccount = {
-      name: googleName.trim(),
-      email: googleEmail.trim(),
+      name: userName,
+      email: userEmail,
     }
+
     saveToken('google_oauth_token_' + Date.now())
     saveUser(googleAccount)
     saveRegisteredAccount({ name: googleAccount.name, email: googleAccount.email, password: 'google_oauth_pass' })
-    setShowGoogleModal(false)
+    setLoading(false)
     navigate('/dashboard')
   }
 
   const handleAppleLogin = () => {
-    const userEmail = email.trim() || 'fadel.apple@icloud.com'
+    const userEmail = email.trim() || 'fadel.fall@icloud.com'
     const userName = formatNameFromEmail(userEmail)
     const appleAccount = { name: userName, email: userEmail }
     saveToken('apple_oauth_token_' + Date.now())
@@ -151,11 +163,11 @@ function LoginPage() {
             </div>
 
             <div className="social-row">
-              <button type="button" className="social-btn" onClick={handleGoogleLogin} title="Se connecter avec Google">
+              <button type="button" className="social-btn" onClick={handleGoogleLogin} title="Se connecter directement avec Google">
                 <GoogleIcon />
                 Google
               </button>
-              <button type="button" className="social-btn" onClick={handleAppleLogin} title="Se connecter avec Apple">
+              <button type="button" className="social-btn" onClick={handleAppleLogin} title="Se connecter directement avec Apple">
                 <AppleIcon />
                 Apple
               </button>
@@ -170,75 +182,6 @@ function LoginPage() {
           </div>
         </form>
       </div>
-
-      {/* Modal de sélection de compte Google réel */}
-      {showGoogleModal && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20
-        }} onClick={() => setShowGoogleModal(false)}>
-          <div style={{
-            background: 'var(--card-bg)', borderRadius: 20, width: '100%', maxWidth: 380, padding: 24,
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)', textAlign: 'center'
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-              <GoogleIcon />
-            </div>
-            <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>
-              Connexion avec Google
-            </h3>
-            <p style={{ margin: '0 0 16px', fontSize: 12.5, color: 'var(--text-secondary)' }}>
-              Entrez votre compte Google pour personnaliser vos réglages.
-            </p>
-            <form onSubmit={handleConfirmGoogleModal} style={{ display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left' }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Votre nom complet *</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Fadel Fall"
-                  value={googleName}
-                  onChange={e => setGoogleName(e.target.value)}
-                  style={{
-                    width: '100%', padding: '10px 12px', marginTop: 4, borderRadius: 10,
-                    border: '1px solid var(--border)', outline: 'none', fontSize: 14,
-                    background: 'var(--input-bg)', color: 'var(--text)'
-                  }}
-                  required
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Votre adresse e-mail Google *</label>
-                <input
-                  type="email"
-                  placeholder="Ex: fadel.fall@gmail.com"
-                  value={googleEmail}
-                  onChange={e => setGoogleEmail(e.target.value)}
-                  style={{
-                    width: '100%', padding: '10px 12px', marginTop: 4, borderRadius: 10,
-                    border: '1px solid var(--border)', outline: 'none', fontSize: 14,
-                    background: 'var(--input-bg)', color: 'var(--text)'
-                  }}
-                  required
-                />
-              </div>
-              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                <button type="button" onClick={() => setShowGoogleModal(false)} style={{
-                  flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--border)',
-                  background: 'var(--card-bg)', fontWeight: 600, cursor: 'pointer', color: 'var(--text)'
-                }}>
-                  Annuler
-                </button>
-                <button type="submit" style={{
-                  flex: 1, padding: '10px', borderRadius: 10, border: 'none',
-                  background: 'var(--primary)', color: '#fff', fontWeight: 600, cursor: 'pointer'
-                }}>
-                  Se connecter
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
