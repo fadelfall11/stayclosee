@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/BottomNav'
 import '../components/AppLayout.css'
-import { getUser, removeToken } from '../services/api'
+import { getUser, saveUser, saveRegisteredAccount, removeToken, formatNameFromEmail } from '../services/api'
 import { useTheme } from '../contexts/ThemeContext'
 
 function Toggle({ checked, onChange, id }) {
@@ -24,13 +24,26 @@ export default function SettingsPage() {
   const navigate = useNavigate()
   const { dark, toggle: toggleTheme } = useTheme()
 
+  const [currentUser, setCurrentUser] = useState(() => getUser())
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+
   const [notifBirthdays, setNotifBirthdays] = useState(true)
   const [notifReminders, setNotifReminders] = useState(true)
   const [notifWeekly,    setNotifWeekly]    = useState(false)
 
-  const storedUser = getUser()
-  const userName = storedUser?.name || 'Mon Compte'
-  const userEmail = storedUser?.email || 'utilisateur@keepintouch.com'
+  useEffect(() => {
+    const u = getUser()
+    if (u) {
+      setCurrentUser(u)
+      setEditName(u.name || '')
+      setEditEmail(u.email || '')
+    }
+  }, [])
+
+  const userName = currentUser?.name || 'Mon Compte'
+  const userEmail = currentUser?.email || 'utilisateur@keepintouch.com'
   const initials = userName
     .split(' ')
     .map(n => n[0])
@@ -43,6 +56,18 @@ export default function SettingsPage() {
     navigate('/login')
   }
 
+  const handleSaveProfile = (e) => {
+    e.preventDefault()
+    const updated = {
+      name: editName.trim() || formatNameFromEmail(editEmail) || userName,
+      email: editEmail.trim() || userEmail,
+    }
+    saveUser(updated)
+    saveRegisteredAccount(updated)
+    setCurrentUser(updated)
+    setIsEditing(false)
+  }
+
   return (
     <div className="app-page">
       <div className="app-page-inner">
@@ -53,14 +78,75 @@ export default function SettingsPage() {
 
         <div className="page-content">
           {/* Profile card */}
-          <div className="card" style={{ padding: '20px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div className="avatar" style={{ width: 56, height: 56, background: 'var(--primary-soft-bg)', fontSize: 20 }}>
-              <span className="avatar-initials">{initials}</span>
+          <div className="card" style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div className="avatar" style={{ width: 56, height: 56, background: 'var(--primary-soft-bg)', fontSize: 20 }}>
+                <span className="avatar-initials">{initials}</span>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 16, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</p>
+                <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userEmail}</p>
+              </div>
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                style={{
+                  padding: '6px 12px', borderRadius: 10, border: '1px solid var(--border)',
+                  background: 'var(--input-bg)', color: 'var(--primary)', fontWeight: 600,
+                  fontSize: 12, cursor: 'pointer', flexShrink: 0
+                }}
+              >
+                {isEditing ? 'Fermer' : '✏️ Modifier'}
+              </button>
             </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{userName}</p>
-              <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>{userEmail}</p>
-            </div>
+
+            {/* Formulaire de modification de profil */}
+            {isEditing && (
+              <form onSubmit={handleSaveProfile} style={{
+                display: 'flex', flexDirection: 'column', gap: 10,
+                marginTop: 6, paddingTop: 14, borderTop: '1px solid var(--border)'
+              }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Nom complet</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    placeholder="Ex: Fadel Fall"
+                    style={{
+                      width: '100%', padding: '9px 12px', marginTop: 4, borderRadius: 10,
+                      border: '1px solid var(--border)', outline: 'none', fontSize: 14,
+                      background: 'var(--input-bg)', color: 'var(--text)'
+                    }}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Adresse e-mail</label>
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={e => setEditEmail(e.target.value)}
+                    placeholder="Ex: fadel@gmail.com"
+                    style={{
+                      width: '100%', padding: '9px 12px', marginTop: 4, borderRadius: 10,
+                      border: '1px solid var(--border)', outline: 'none', fontSize: 14,
+                      background: 'var(--input-bg)', color: 'var(--text)'
+                    }}
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px', borderRadius: 10, border: 'none',
+                    background: 'var(--primary)', color: '#fff', fontWeight: 600,
+                    fontSize: 13, cursor: 'pointer', marginTop: 4
+                  }}
+                >
+                  Enregistrer les modifications
+                </button>
+              </form>
+            )}
           </div>
 
           {/* Notifications section */}

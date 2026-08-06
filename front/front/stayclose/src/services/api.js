@@ -45,11 +45,17 @@ export function saveRegisteredAccount(account) {
   const accounts = getRegisteredAccounts()
   const existsIndex = accounts.findIndex(a => a.email.toLowerCase() === account.email.toLowerCase())
   if (existsIndex >= 0) {
-    accounts[existsIndex] = account
+    accounts[existsIndex] = { ...accounts[existsIndex], ...account }
   } else {
     accounts.push(account)
   }
   localStorage.setItem('kc_registered_accounts', JSON.stringify(accounts))
+}
+
+export function formatNameFromEmail(email) {
+  if (!email) return 'Utilisateur'
+  const raw = email.split('@')[0].replace(/[._-]/g, ' ')
+  return raw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
 export function getStoredContacts() {
@@ -100,12 +106,16 @@ export async function login(email, motDePasse) {
       body: JSON.stringify({ email, motDePasse }),
     })
     if (data?.token) saveToken(data.token)
+
+    const localAccounts = getRegisteredAccounts()
+    const found = localAccounts.find(a => a.email.toLowerCase() === email.toLowerCase())
+
     const userObj = {
-      name: data?.user?.nom || data?.nom || email.split('@')[0],
-      email: email,
+      name: data?.user?.nom || data?.nom || data?.name || found?.name || formatNameFromEmail(email),
+      email: data?.user?.email || data?.email || email,
     }
     saveUser(userObj)
-    saveRegisteredAccount({ name: userObj.name, email, password: motDePasse })
+    saveRegisteredAccount({ name: userObj.name, email: userObj.email, password: motDePasse })
     return data
   } catch (err) {
     // Si le serveur backend a retourné une vraie réponse d'erreur HTTP (ex: 400, 401, 404)
@@ -124,10 +134,11 @@ export async function login(email, motDePasse) {
       throw new Error('Mot de passe incorrect.')
     }
 
-    // Compte local valide trouvé
+    // Compte local valide trouvé : récupération des infos utilisateur exactes
     saveToken('demo_token_' + Date.now())
-    saveUser({ name: found.name || email.split('@')[0], email: found.email })
-    return { success: true }
+    const userObj = { name: found.name || formatNameFromEmail(email), email: found.email }
+    saveUser(userObj)
+    return { success: true, user: userObj }
   }
 }
 
